@@ -342,8 +342,11 @@ class DocumentDashboard {
     }
 
     processFiles(files) {
+        console.log('🔄 ProcessFiles chiamato con:', files.length, 'file(s)');
+        
         if (files.length === 1) {
             this.selectedFile = files[0];
+            console.log('✅ File selezionato impostato:', this.selectedFile.name);
             this.openUploadModal();
             this.prefillForm();
         } else if (files.length > 1) {
@@ -353,6 +356,9 @@ class DocumentDashboard {
             this.renderFiles();
             this.updateFileCounts();
             this.showMessage('File caricati con successo!', 'success');
+        } else {
+            console.warn('⚠️ Nessun file ricevuto in processFiles');
+            this.showMessage('Nessun file selezionato!', 'error');
         }
     }
 
@@ -394,7 +400,8 @@ class DocumentDashboard {
         this.uploadModal.classList.remove('active');
         document.body.style.overflow = '';
         this.uploadForm.reset();
-        this.selectedFile = null;
+        // NON resettiamo selectedFile qui - lo facciamo solo dopo upload successo
+        console.log('📝 Modal chiuso, selectedFile mantenuto:', this.selectedFile?.name || 'null');
     }
 
     openPreviewModal(file) {
@@ -412,18 +419,31 @@ class DocumentDashboard {
     async handleUploadSubmit(e) {
         e.preventDefault();
         
+        // Controllo approfondito del file selezionato
         if (!this.selectedFile) {
-            this.showMessage('Nessun file selezionato!', 'error');
+            console.error('❌ Nessun file selezionato - this.selectedFile è:', this.selectedFile);
+            this.showMessage('Errore: Nessun file selezionato! Riprova a selezionare il file.', 'error');
             return;
         }
+        
+        console.log('✅ File selezionato:', this.selectedFile.name, 'Dimensione:', this.selectedFile.size);
         
         const formData = new FormData(this.uploadForm);
         const syncToCloud = this.syncToCloudCheckbox.checked && this.currentUser;
         
+        // Validazione form
+        const fileName = formData.get('fileName');
+        const fileCategory = formData.get('fileCategory');
+        
+        if (!fileName || !fileCategory) {
+            this.showMessage('Per favore compila tutti i campi obbligatori!', 'error');
+            return;
+        }
+        
         const fileData = {
             id: Date.now() + Math.random(), // ID temporaneo
-            name: formData.get('fileName') || this.selectedFile.name,
-            category: formData.get('fileCategory'),
+            name: fileName,
+            category: fileCategory,
             description: formData.get('fileDescription') || '',
             tags: (formData.get('fileTags') || '').split(',').map(tag => tag.trim()).filter(tag => tag),
             originalName: this.selectedFile.name,
@@ -452,6 +472,8 @@ class DocumentDashboard {
                 fileData.id = docId;
                 
                 this.showMessage('File caricato sul cloud!', 'success');
+                // Reset file dopo upload successo
+                this.selectedFile = null;
             } else {
                 // Solo locale
                 const reader = new FileReader();
@@ -462,16 +484,22 @@ class DocumentDashboard {
                     this.renderFiles();
                     this.updateFileCounts();
                     this.showMessage('File salvato localmente!', 'success');
+                    // Reset file dopo upload successo
+                    this.selectedFile = null;
                 };
                 reader.readAsDataURL(this.selectedFile);
                 return; // Evita di eseguire il resto del codice
             }
             
             this.updateSyncStatus('online');
+            // Reset file dopo upload successo
+            this.selectedFile = null;
         } catch (error) {
             console.error('Errore upload:', error);
             this.showMessage('Errore durante l\'upload', 'error');
             this.updateSyncStatus(this.currentUser ? 'online' : 'offline');
+            // Reset file anche in caso di errore
+            this.selectedFile = null;
         }
     }
 
