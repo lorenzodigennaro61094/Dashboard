@@ -168,4 +168,4 @@ Progetto rilasciato sotto licenza MIT. Vedi il file LICENSE per maggiori dettagl
 
 **Sviluppato con ❤️ per organizzare meglio i tuoi documenti di lavoro**
 
-*Per domande o supporto, contatta: lorenzo.digennaro@email.com* 
+*Per domande o supporto, contatta: lorenzo.di.gennaro61094@gmail.com* 
