@@ -26,6 +26,9 @@ class DocumentDashboard {
         
         // Bottoni
         this.uploadBtn = document.getElementById('uploadBtn');
+        this.exportBtn = document.getElementById('exportBtn');
+        this.importBtn = document.getElementById('importBtn');
+        this.importInput = document.getElementById('importInput');
         this.closeModal = document.getElementById('closeModal');
         this.closePreview = document.getElementById('closePreview');
         this.cancelUpload = document.getElementById('cancelUpload');
@@ -45,6 +48,16 @@ class DocumentDashboard {
         this.uploadZone.addEventListener('drop', (e) => this.handleDrop(e));
         this.uploadZone.addEventListener('dragleave', (e) => this.handleDragLeave(e));
         this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+        
+        // Backup eventi
+        this.exportBtn.addEventListener('click', () => this.exportData());
+        this.importBtn.addEventListener('click', () => this.importInput.click());
+        this.importInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                this.importData(e.target.files[0]);
+                e.target.value = ''; // Reset input
+            }
+        });
         
         // Form eventi
         this.uploadForm.addEventListener('submit', (e) => this.handleUploadSubmit(e));
@@ -448,6 +461,58 @@ class DocumentDashboard {
                 messageDiv.parentNode.removeChild(messageDiv);
             }
         }, 3000);
+    }
+
+    // Nuove funzionalità per Export/Import
+    exportData() {
+        const data = {
+            files: this.files,
+            exportDate: new Date().toISOString(),
+            version: '1.0'
+        };
+        
+        const dataStr = JSON.stringify(data, null, 2);
+        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `dashboard-backup-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        this.showMessage('Backup esportato con successo!', 'success');
+    }
+
+    importData(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                
+                if (data.files && Array.isArray(data.files)) {
+                    // Chiedi conferma prima di sovrascrivere
+                    if (confirm(`Trovati ${data.files.length} file nel backup. Vuoi sostituire i dati attuali?`)) {
+                        this.files = data.files;
+                        this.saveFiles();
+                        this.renderFiles();
+                        this.updateFileCounts();
+                        this.showMessage(`${data.files.length} file importati con successo!`, 'success');
+                    }
+                } else {
+                    this.showMessage('File di backup non valido!', 'error');
+                }
+            } catch (error) {
+                this.showMessage('Errore durante l\'importazione del backup!', 'error');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    // Sincronizzazione con Google Drive (per il futuro)
+    syncWithGoogleDrive() {
+        // Placeholder per futura implementazione
+        this.showMessage('Sincronizzazione Google Drive in arrivo!', 'info');
     }
 }
 

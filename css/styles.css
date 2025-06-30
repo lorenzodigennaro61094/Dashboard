@@ -64,6 +64,22 @@ body {
     gap: 1.5rem;
 }
 
+/* Backup Controls */
+.backup-controls {
+    display: flex;
+    gap: 0.5rem;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    padding: 0.25rem;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.backup-controls .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    border-radius: 6px;
+}
+
 /* Search Box */
 .search-box {
     position: relative;
