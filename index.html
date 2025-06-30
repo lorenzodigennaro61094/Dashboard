@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Documenti - Lorenzo Di Gennaro</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-folder-open"></i>
+                    <h1>Dashboard Documenti</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="uploadBtn">
+                        <i class="fas fa-upload"></i>
+                        Carica File
+                    </button>
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Cerca documenti...">
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <nav class="nav-menu">
+                    <div class="nav-section">
+                        <h3>Categorie</h3>
+                        <ul class="category-list">
+                            <li class="category-item active" data-category="all">
+                                <i class="fas fa-th-large"></i>
+                                <span>Tutti i File</span>
+                                <span class="file-count">0</span>
+                            </li>
+                            <li class="category-item" data-category="relazioni">
+                                <i class="fas fa-file-alt"></i>
+                                <span>Relazioni</span>
+                                <span class="file-count">0</span>
+                            </li>
+                            <li class="category-item" data-category="documenti">
+                                <i class="fas fa-file-word"></i>
+                                <span>Documenti</span>
+                                <span class="file-count">0</span>
+                            </li>
+                            <li class="category-item" data-category="presentazioni">
+                                <i class="fas fa-file-powerpoint"></i>
+                                <span>Presentazioni</span>
+                                <span class="file-count">0</span>
+                            </li>
+                            <li class="category-item" data-category="fogli">
+                                <i class="fas fa-file-excel"></i>
+                                <span>Fogli di Calcolo</span>
+                                <span class="file-count">0</span>
+                            </li>
+                            <li class="category-item" data-category="immagini">
+                                <i class="fas fa-image"></i>
+                                <span>Immagini</span>
+                                <span class="file-count">0</span>
+                            </li>
+                            <li class="category-item" data-category="pdf">
+                                <i class="fas fa-file-pdf"></i>
+                                <span>PDF</span>
+                                <span class="file-count">0</span>
+                            </li>
+                            <li class="category-item" data-category="altri">
+                                <i class="fas fa-file"></i>
+                                <span>Altri</span>
+                                <span class="file-count">0</span>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+            </aside>
+
+            <!-- Content Area -->
+            <section class="content-area">
+                <!-- Upload Zone -->
+                <div class="upload-zone" id="uploadZone">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <h2>Trascina i file qui o clicca per caricare</h2>
+                    <p>Supporta tutti i formati di file comuni</p>
+                    <input type="file" id="fileInput" multiple accept="*/*" hidden>
+                </div>
+
+                <!-- File Grid -->
+                <div class="file-grid" id="fileGrid">
+                    <!-- I file verranno inseriti qui dinamicamente -->
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="emptyState">
+                    <i class="fas fa-folder-open"></i>
+                    <h2>Nessun documento presente</h2>
+                    <p>Inizia caricando i tuoi primi documenti</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal per Upload -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Carica Nuovo File</h2>
+                <button class="close-btn" id="closeModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadForm">
+                    <div class="form-group">
+                        <label for="fileName">Nome File:</label>
+                        <input type="text" id="fileName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fileCategory">Categoria:</label>
+                        <select id="fileCategory" required>
+                            <option value="">Seleziona categoria</option>
+                            <option value="relazioni">Relazioni</option>
+                            <option value="documenti">Documenti</option>
+                            <option value="presentazioni">Presentazioni</option>
+                            <option value="fogli">Fogli di Calcolo</option>
+                            <option value="immagini">Immagini</option>
+                            <option value="pdf">PDF</option>
+                            <option value="altri">Altri</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="fileDescription">Descrizione (opzionale):</label>
+                        <textarea id="fileDescription" placeholder="Breve descrizione del documento..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="fileTags">Tag (opzionali):</label>
+                        <input type="text" id="fileTags" placeholder="lavoro, importante, progetto...">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelUpload">Annulla</button>
+                        <button type="submit" class="btn btn-primary">Carica File</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal per Anteprima -->
+    <div class="modal" id="previewModal">
+        <div class="modal-content preview-modal">
+            <div class="modal-header">
+                <h2 id="previewTitle">Anteprima File</h2>
+                <div class="preview-actions">
+                    <button class="btn btn-small" id="downloadBtn">
+                        <i class="fas fa-download"></i> Scarica
+                    </button>
+                    <button class="btn btn-small btn-danger" id="deleteBtn">
+                        <i class="fas fa-trash"></i> Elimina
+                    </button>
+                    <button class="close-btn" id="closePreview">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent">
+                    <!-- Contenuto anteprima -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html> 
