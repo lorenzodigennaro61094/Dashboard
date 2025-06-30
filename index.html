@@ -151,11 +151,11 @@
                 <form id="uploadForm">
                     <div class="form-group">
                         <label for="fileName">Nome File:</label>
-                        <input type="text" id="fileName" required>
+                        <input type="text" id="fileName" name="fileName" required>
                     </div>
                     <div class="form-group">
                         <label for="fileCategory">Categoria:</label>
-                        <select id="fileCategory" required>
+                        <select id="fileCategory" name="fileCategory" required>
                             <option value="">Seleziona categoria</option>
                             <option value="relazioni">Relazioni</option>
                             <option value="documenti">Documenti</option>
@@ -168,11 +168,11 @@
                     </div>
                     <div class="form-group">
                         <label for="fileDescription">Descrizione (opzionale):</label>
-                        <textarea id="fileDescription" placeholder="Breve descrizione del documento..."></textarea>
+                        <textarea id="fileDescription" name="fileDescription" placeholder="Breve descrizione del documento..."></textarea>
                     </div>
                     <div class="form-group">
                         <label for="fileTags">Tag (opzionali):</label>
-                        <input type="text" id="fileTags" placeholder="lavoro, importante, progetto...">
+                        <input type="text" id="fileTags" name="fileTags" placeholder="lavoro, importante, progetto...">
                     </div>
                     <div class="form-group">
                         <label class="checkbox-container">
