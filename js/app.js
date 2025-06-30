@@ -1,12 +1,39 @@
-// Dashboard Documenti - JavaScript
+// Dashboard Documenti con Integrazione Firebase
+import { 
+    auth, 
+    signInWithGoogle, 
+    signOutUser, 
+    onAuthChange,
+    createUserDocument,
+    saveFileToFirestore,
+    getFilesFromFirestore,
+    deleteFileFromFirestore,
+    listenToFiles,
+    uploadFileToStorage,
+    deleteFileFromStorage,
+    generateFilePath
+} from './firebase-config.js';
+
 class DocumentDashboard {
     constructor() {
-        this.files = JSON.parse(localStorage.getItem('dashboard_files')) || [];
+        // Stato autenticazione
+        this.currentUser = null;
+        this.isOnline = navigator.onLine;
+        this.firestoreListener = null;
+        
+        // Dati locali e cloud
+        this.localFiles = JSON.parse(localStorage.getItem('dashboard_files')) || [];
+        this.cloudFiles = [];
+        this.files = []; // Array unificato
+        
+        // Filtri e ricerca
         this.currentFilter = 'all';
         this.searchTerm = '';
         
         this.initializeElements();
+        this.setupAuthenticationListener();
         this.bindEvents();
+        this.setupNetworkListener();
         this.renderFiles();
         this.updateFileCounts();
     }
@@ -19,10 +46,16 @@ class DocumentDashboard {
         this.emptyState = document.getElementById('emptyState');
         this.searchInput = document.getElementById('searchInput');
         
+        // Sezione utente e sync
+        this.userSection = document.getElementById('userSection');
+        this.syncIndicator = document.getElementById('syncIndicator');
+        this.syncBtn = document.getElementById('syncBtn');
+        
         // Modal elementi
         this.uploadModal = document.getElementById('uploadModal');
         this.previewModal = document.getElementById('previewModal');
         this.uploadForm = document.getElementById('uploadForm');
+        this.syncToCloudCheckbox = document.getElementById('syncToCloud');
         
         // Bottoni
         this.uploadBtn = document.getElementById('uploadBtn');
@@ -35,9 +68,175 @@ class DocumentDashboard {
         
         // Categorie
         this.categoryItems = document.querySelectorAll('.category-item');
+    }
+
+    // Setup Autenticazione Firebase
+    setupAuthenticationListener() {
+        onAuthChange(async (user) => {
+            this.currentUser = user;
+            this.updateUserUI();
+            
+            if (user) {
+                // Utente loggato
+                await createUserDocument(user);
+                this.setupCloudSync();
+                this.updateSyncStatus('online');
+                this.showMessage(`Benvenuto ${user.displayName}!`, 'success');
+            } else {
+                // Utente non loggato
+                this.teardownCloudSync();
+                this.updateSyncStatus('offline');
+                this.loadLocalFiles();
+            }
+        });
+    }
+
+    // UI Autenticazione
+    updateUserUI() {
+        if (this.currentUser) {
+            this.userSection.innerHTML = `
+                <div class="user-info">
+                    <img src="${this.currentUser.photoURL}" alt="Avatar" class="user-avatar">
+                    <div class="user-details">
+                        <span class="user-name">${this.currentUser.displayName}</span>
+                        <span class="user-email">${this.currentUser.email}</span>
+                    </div>
+                    <button class="btn btn-outline" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </button>
+                </div>
+            `;
+            
+            // Event listener per logout
+            document.getElementById('logoutBtn').addEventListener('click', () => this.handleLogout());
+        } else {
+            this.userSection.innerHTML = `
+                <button class="btn btn-google" id="loginBtn">
+                    <i class="fab fa-google"></i>
+                    Accedi con Google
+                </button>
+            `;
+            
+            // Event listener per login
+            document.getElementById('loginBtn').addEventListener('click', () => this.handleLogin());
+        }
+    }
+
+    // Autenticazione
+    async handleLogin() {
+        try {
+            this.showMessage('Accesso in corso...', 'info');
+            await signInWithGoogle();
+        } catch (error) {
+            console.error('Errore login:', error);
+            this.showMessage('Errore durante l\'accesso', 'error');
+        }
+    }
+
+    async handleLogout() {
+        try {
+            await signOutUser();
+            this.showMessage('Logout effettuato', 'info');
+        } catch (error) {
+            console.error('Errore logout:', error);
+            this.showMessage('Errore durante il logout', 'error');
+        }
+    }
+
+    // Sync Cloud
+    setupCloudSync() {
+        if (this.currentUser && this.firestoreListener) {
+            this.firestoreListener(); // Rimuovi listener precedente
+        }
         
-        // Contatori file
-        this.fileCounts = document.querySelectorAll('.file-count');
+        if (this.currentUser) {
+            this.firestoreListener = listenToFiles(this.currentUser.uid, (cloudFiles) => {
+                this.cloudFiles = cloudFiles;
+                this.mergeFiles();
+                this.renderFiles();
+                this.updateFileCounts();
+            });
+        }
+    }
+
+    teardownCloudSync() {
+        if (this.firestoreListener) {
+            this.firestoreListener();
+            this.firestoreListener = null;
+        }
+        this.cloudFiles = [];
+        this.mergeFiles();
+    }
+
+    // Merge file locali e cloud
+    mergeFiles() {
+        const merged = new Map();
+        
+        // Aggiungi file locali
+        this.localFiles.forEach(file => {
+            merged.set(file.id, { ...file, source: 'local' });
+        });
+        
+        // Aggiungi/sovrascrive con file cloud
+        this.cloudFiles.forEach(file => {
+            merged.set(file.id, { ...file, source: 'cloud' });
+        });
+        
+        this.files = Array.from(merged.values());
+    }
+
+    loadLocalFiles() {
+        this.files = [...this.localFiles];
+        this.renderFiles();
+        this.updateFileCounts();
+    }
+
+    // Status Sync
+    updateSyncStatus(status) {
+        const icon = this.syncIndicator.querySelector('i');
+        const text = this.syncIndicator.querySelector('span');
+        const syncStatus = this.syncBtn.querySelector('.sync-status');
+        
+        switch(status) {
+            case 'online':
+                icon.className = 'fas fa-cloud-upload-alt';
+                text.textContent = 'Online - Sync attivo';
+                syncStatus.textContent = 'Cloud';
+                this.syncIndicator.className = 'sync-indicator online';
+                this.syncBtn.disabled = false;
+                break;
+            case 'offline':
+                icon.className = 'fas fa-wifi-slash';
+                text.textContent = 'Offline - Solo locale';
+                syncStatus.textContent = 'Locale';
+                this.syncIndicator.className = 'sync-indicator offline';
+                this.syncBtn.disabled = true;
+                break;
+            case 'syncing':
+                icon.className = 'fas fa-sync fa-spin';
+                text.textContent = 'Sincronizzazione...';
+                syncStatus.textContent = 'Sync...';
+                this.syncIndicator.className = 'sync-indicator syncing';
+                break;
+        }
+    }
+
+    // Network Listener
+    setupNetworkListener() {
+        window.addEventListener('online', () => {
+            this.isOnline = true;
+            if (this.currentUser) {
+                this.updateSyncStatus('online');
+                this.showMessage('Connessione ripristinata', 'success');
+            }
+        });
+        
+        window.addEventListener('offline', () => {
+            this.isOnline = false;
+            this.updateSyncStatus('offline');
+            this.showMessage('Connessione persa - Modalità offline', 'warning');
+        });
     }
 
     bindEvents() {
@@ -55,9 +254,12 @@ class DocumentDashboard {
         this.importInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 this.importData(e.target.files[0]);
-                e.target.value = ''; // Reset input
+                e.target.value = '';
             }
         });
+
+        // Sync manuale
+        this.syncBtn.addEventListener('click', () => this.manualSync());
         
         // Form eventi
         this.uploadForm.addEventListener('submit', (e) => this.handleUploadSubmit(e));
@@ -90,6 +292,32 @@ class DocumentDashboard {
         });
     }
 
+    // Sync Manuale
+    async manualSync() {
+        if (!this.currentUser || !this.isOnline) {
+            this.showMessage('Login richiesto per sincronizzazione', 'error');
+            return;
+        }
+
+        this.updateSyncStatus('syncing');
+        
+        try {
+            // Carica file dal cloud
+            const cloudFiles = await getFilesFromFirestore(this.currentUser.uid);
+            this.cloudFiles = cloudFiles;
+            this.mergeFiles();
+            this.renderFiles();
+            this.updateFileCounts();
+            
+            this.updateSyncStatus('online');
+            this.showMessage('Sincronizzazione completata!', 'success');
+        } catch (error) {
+            console.error('Errore sync:', error);
+            this.updateSyncStatus('offline');
+            this.showMessage('Errore sincronizzazione', 'error');
+        }
+    }
+
     // Gestione Drag & Drop
     handleDragOver(e) {
         e.preventDefault();
@@ -119,9 +347,8 @@ class DocumentDashboard {
             this.openUploadModal();
             this.prefillForm();
         } else if (files.length > 1) {
-            // Upload multiplo
             files.forEach(file => {
-                this.addFileToSystem(file);
+                this.addFileToSystem(file, false); // Non aprire modal per upload multiplo
             });
             this.renderFiles();
             this.updateFileCounts();
@@ -136,6 +363,10 @@ class DocumentDashboard {
             
             const category = this.detectFileCategory(this.selectedFile.name);
             document.getElementById('fileCategory').value = category;
+            
+            // Abilita sync cloud solo se utente loggato
+            this.syncToCloudCheckbox.checked = !!this.currentUser;
+            this.syncToCloudCheckbox.disabled = !this.currentUser;
         }
     }
 
@@ -178,7 +409,7 @@ class DocumentDashboard {
     }
 
     // Upload Form Submission
-    handleUploadSubmit(e) {
+    async handleUploadSubmit(e) {
         e.preventDefault();
         
         if (!this.selectedFile) {
@@ -187,8 +418,10 @@ class DocumentDashboard {
         }
         
         const formData = new FormData(this.uploadForm);
+        const syncToCloud = this.syncToCloudCheckbox.checked && this.currentUser;
+        
         const fileData = {
-            id: Date.now(),
+            id: Date.now() + Math.random(), // ID temporaneo
             name: formData.get('fileName') || this.selectedFile.name,
             category: formData.get('fileCategory'),
             description: formData.get('fileDescription'),
@@ -197,24 +430,57 @@ class DocumentDashboard {
             size: this.selectedFile.size,
             type: this.selectedFile.type,
             uploadDate: new Date().toISOString(),
-            fileData: null
+            fileData: null,
+            cloudUrl: null,
+            cloudPath: null
         };
-        
-        // Leggi il file come base64 per la demo
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            fileData.fileData = e.target.result;
-            this.addFileToSystem(fileData);
-            this.closeUploadModal();
-            this.renderFiles();
-            this.updateFileCounts();
-            this.showMessage('File caricato con successo!', 'success');
-        };
-        reader.readAsDataURL(this.selectedFile);
+
+        this.closeUploadModal();
+        this.updateSyncStatus('syncing');
+
+        try {
+            if (syncToCloud) {
+                // Upload su Firebase
+                const filePath = generateFilePath(this.currentUser.uid, this.selectedFile.name);
+                const cloudUrl = await uploadFileToStorage(this.selectedFile, filePath);
+                
+                fileData.cloudUrl = cloudUrl;
+                fileData.cloudPath = filePath;
+                
+                // Salva metadati su Firestore
+                const docId = await saveFileToFirestore(this.currentUser.uid, fileData);
+                fileData.id = docId;
+                
+                this.showMessage('File caricato sul cloud!', 'success');
+            } else {
+                // Solo locale
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    fileData.fileData = e.target.result;
+                    this.addFileToLocal(fileData);
+                    this.mergeFiles();
+                    this.renderFiles();
+                    this.updateFileCounts();
+                    this.showMessage('File salvato localmente!', 'success');
+                };
+                reader.readAsDataURL(this.selectedFile);
+                return; // Evita di eseguire il resto del codice
+            }
+            
+            this.updateSyncStatus('online');
+        } catch (error) {
+            console.error('Errore upload:', error);
+            this.showMessage('Errore durante l\'upload', 'error');
+            this.updateSyncStatus(this.currentUser ? 'online' : 'offline');
+        }
+    }
+
+    addFileToLocal(fileData) {
+        this.localFiles.push(fileData);
+        this.saveLocalFiles();
     }
 
     addFileToSystem(fileData) {
-        // Se è un oggetto File diretto, convertilo
         if (fileData instanceof File) {
             const file = fileData;
             fileData = {
@@ -231,12 +497,12 @@ class DocumentDashboard {
             };
         }
         
-        this.files.push(fileData);
-        this.saveFiles();
+        this.addFileToLocal(fileData);
+        this.mergeFiles();
     }
 
-    saveFiles() {
-        localStorage.setItem('dashboard_files', JSON.stringify(this.files));
+    saveLocalFiles() {
+        localStorage.setItem('dashboard_files', JSON.stringify(this.localFiles));
     }
 
     // File Rendering
@@ -252,10 +518,9 @@ class DocumentDashboard {
             
             this.fileGrid.innerHTML = filteredFiles.map(file => this.createFileCard(file)).join('');
             
-            // Aggiungi event listeners alle card
             this.fileGrid.querySelectorAll('.file-card').forEach(card => {
-                const fileId = parseInt(card.dataset.fileId);
-                const file = this.files.find(f => f.id === fileId);
+                const fileId = card.dataset.fileId;
+                const file = this.files.find(f => f.id.toString() === fileId);
                 card.addEventListener('click', () => this.openPreviewModal(file));
             });
         }
@@ -265,6 +530,7 @@ class DocumentDashboard {
         const fileIcon = this.getFileIcon(file.originalName);
         const fileSize = this.formatFileSize(file.size);
         const uploadDate = new Date(file.uploadDate).toLocaleDateString('it-IT');
+        const isCloud = file.source === 'cloud' || file.cloudUrl;
         
         return `
             <div class="file-card fade-in" data-file-id="${file.id}">
@@ -275,6 +541,9 @@ class DocumentDashboard {
                     <div class="file-info">
                         <h3>${file.name}</h3>
                         <div class="file-meta">${fileSize} • ${uploadDate}</div>
+                    </div>
+                    <div class="file-badges">
+                        ${isCloud ? '<span class="badge cloud"><i class="fas fa-cloud"></i></span>' : '<span class="badge local"><i class="fas fa-hdd"></i></span>'}
                     </div>
                 </div>
                 ${file.description ? `<div class="file-description">${file.description}</div>` : ''}
@@ -319,12 +588,10 @@ class DocumentDashboard {
     getFilteredFiles() {
         let filtered = this.files;
         
-        // Filtro per categoria
         if (this.currentFilter !== 'all') {
             filtered = filtered.filter(file => file.category === this.currentFilter);
         }
         
-        // Filtro per ricerca
         if (this.searchTerm) {
             const term = this.searchTerm.toLowerCase();
             filtered = filtered.filter(file => 
@@ -334,21 +601,13 @@ class DocumentDashboard {
             );
         }
         
-        // Ordina per data di upload (più recenti prima)
         return filtered.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
     }
 
     handleCategoryClick(categoryItem) {
-        // Rimuovi active da tutti
         this.categoryItems.forEach(item => item.classList.remove('active'));
-        
-        // Aggiungi active al selezionato
         categoryItem.classList.add('active');
-        
-        // Aggiorna filtro
         this.currentFilter = categoryItem.dataset.category;
-        
-        // Re-renderizza
         this.renderFiles();
     }
 
@@ -388,17 +647,17 @@ class DocumentDashboard {
         
         titleElement.textContent = file.name;
         
-        // Setup bottoni
         downloadBtn.onclick = () => this.downloadFile(file);
         deleteBtn.onclick = () => this.deleteFile(file);
         
-        // Renderizza contenuto in base al tipo
-        if (file.type && file.type.startsWith('image/') && file.fileData) {
-            contentElement.innerHTML = `<img src="${file.fileData}" alt="${file.name}" class="preview-image">`;
+        if (file.type && file.type.startsWith('image/') && (file.fileData || file.cloudUrl)) {
+            const imageSrc = file.cloudUrl || file.fileData;
+            contentElement.innerHTML = `<img src="${imageSrc}" alt="${file.name}" class="preview-image">`;
         } else if (file.type && file.type.startsWith('text/') && file.fileData) {
             const textContent = atob(file.fileData.split(',')[1]);
             contentElement.innerHTML = `<div class="preview-text">${textContent}</div>`;
         } else {
+            const isCloud = file.source === 'cloud' || file.cloudUrl;
             contentElement.innerHTML = `
                 <div class="file-info-preview">
                     <div class="preview-icon">
@@ -408,6 +667,7 @@ class DocumentDashboard {
                     <p><strong>File originale:</strong> ${file.originalName}</p>
                     <p><strong>Dimensione:</strong> ${this.formatFileSize(file.size)}</p>
                     <p><strong>Categoria:</strong> ${file.category}</p>
+                    <p><strong>Storage:</strong> ${isCloud ? '☁️ Cloud' : '💽 Locale'}</p>
                     <p><strong>Data upload:</strong> ${new Date(file.uploadDate).toLocaleString('it-IT')}</p>
                     ${file.description ? `<p><strong>Descrizione:</strong> ${file.description}</p>` : ''}
                     ${file.tags.length > 0 ? `
@@ -424,7 +684,17 @@ class DocumentDashboard {
     }
 
     downloadFile(file) {
-        if (file.fileData) {
+        if (file.cloudUrl) {
+            // Download da cloud
+            const link = document.createElement('a');
+            link.href = file.cloudUrl;
+            link.download = file.originalName;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } else if (file.fileData) {
+            // Download locale
             const link = document.createElement('a');
             link.href = file.fileData;
             link.download = file.originalName;
@@ -436,39 +706,39 @@ class DocumentDashboard {
         }
     }
 
-    deleteFile(file) {
+    async deleteFile(file) {
         if (confirm(`Sei sicuro di voler eliminare "${file.name}"?`)) {
-            this.files = this.files.filter(f => f.id !== file.id);
-            this.saveFiles();
-            this.renderFiles();
-            this.updateFileCounts();
-            this.closePreviewModal();
-            this.showMessage('File eliminato con successo!', 'success');
+            try {
+                if (file.source === 'cloud' && this.currentUser) {
+                    // Elimina da cloud
+                    await deleteFileFromFirestore(this.currentUser.uid, file.id);
+                    if (file.cloudPath) {
+                        await deleteFileFromStorage(file.cloudPath);
+                    }
+                } else {
+                    // Elimina locale
+                    this.localFiles = this.localFiles.filter(f => f.id !== file.id);
+                    this.saveLocalFiles();
+                    this.mergeFiles();
+                    this.renderFiles();
+                    this.updateFileCounts();
+                }
+                
+                this.closePreviewModal();
+                this.showMessage('File eliminato con successo!', 'success');
+            } catch (error) {
+                console.error('Errore eliminazione:', error);
+                this.showMessage('Errore durante l\'eliminazione', 'error');
+            }
         }
     }
 
-    // Utility Methods
-    showMessage(text, type = 'info') {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${type} fade-in`;
-        messageDiv.textContent = text;
-        
-        const headerContent = document.querySelector('.header-content');
-        headerContent.appendChild(messageDiv);
-        
-        setTimeout(() => {
-            if (messageDiv.parentNode) {
-                messageDiv.parentNode.removeChild(messageDiv);
-            }
-        }, 3000);
-    }
-
-    // Nuove funzionalità per Export/Import
+    // Export/Import
     exportData() {
         const data = {
             files: this.files,
             exportDate: new Date().toISOString(),
-            version: '1.0'
+            version: '2.0'
         };
         
         const dataStr = JSON.stringify(data, null, 2);
@@ -491,10 +761,10 @@ class DocumentDashboard {
                 const data = JSON.parse(e.target.result);
                 
                 if (data.files && Array.isArray(data.files)) {
-                    // Chiedi conferma prima di sovrascrivere
                     if (confirm(`Trovati ${data.files.length} file nel backup. Vuoi sostituire i dati attuali?`)) {
-                        this.files = data.files;
-                        this.saveFiles();
+                        this.localFiles = data.files.filter(f => f.source !== 'cloud');
+                        this.saveLocalFiles();
+                        this.mergeFiles();
                         this.renderFiles();
                         this.updateFileCounts();
                         this.showMessage(`${data.files.length} file importati con successo!`, 'success');
@@ -509,10 +779,20 @@ class DocumentDashboard {
         reader.readAsText(file);
     }
 
-    // Sincronizzazione con Google Drive (per il futuro)
-    syncWithGoogleDrive() {
-        // Placeholder per futura implementazione
-        this.showMessage('Sincronizzazione Google Drive in arrivo!', 'info');
+    // Utility Methods
+    showMessage(text, type = 'info') {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${type} fade-in`;
+        messageDiv.textContent = text;
+        
+        const headerContent = document.querySelector('.header-content');
+        headerContent.appendChild(messageDiv);
+        
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.parentNode.removeChild(messageDiv);
+            }
+        }, 4000);
     }
 }
 
@@ -520,31 +800,19 @@ class DocumentDashboard {
 document.addEventListener('DOMContentLoaded', () => {
     new DocumentDashboard();
     
-    // Aggiungi file di esempio se è la prima volta
-    if (!localStorage.getItem('dashboard_files')) {
+    // File di esempio solo se prima volta E non loggato
+    if (!localStorage.getItem('dashboard_files') && !auth.currentUser) {
         const exampleFiles = [
             {
                 id: 1,
-                name: "Relazione Progetto Q1",
-                category: "relazioni",
-                description: "Relazione trimestrale sui risultati del primo quarter",
-                tags: ["q1", "risultati", "importante"],
-                originalName: "relazione_q1_2024.pdf",
+                name: "Guida Setup Raspberry Pi",
+                category: "documenti",
+                description: "Guida completa per configurare il cloud su Raspberry Pi",
+                tags: ["raspberry", "cloud", "setup"],
+                originalName: "raspberry-pi-cloud-setup.md",
                 size: 2500000,
-                type: "application/pdf",
+                type: "text/markdown",
                 uploadDate: new Date(Date.now() - 86400000).toISOString(),
-                fileData: null
-            },
-            {
-                id: 2,
-                name: "Presentazione Nuovo Prodotto",
-                category: "presentazioni",
-                description: "Slide per la presentazione del nuovo prodotto",
-                tags: ["prodotto", "marketing", "2024"],
-                originalName: "presentazione_prodotto.pptx",
-                size: 5200000,
-                type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                uploadDate: new Date(Date.now() - 172800000).toISOString(),
                 fileData: null
             }
         ];
