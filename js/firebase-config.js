@@ -4,14 +4,15 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChang
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
-// La tua configurazione Firebase
+// SOSTITUISCI CON LA TUA CONFIGURAZIONE FIREBASE
+// Ottieni le credenziali da: https://console.firebase.google.com/
 const firebaseConfig = {
-  apiKey: "AIzaSyAOt25etOVWdNHsvO25gTEcHbFtcFi4zHo",
-  authDomain: "dashboard-35127.firebaseapp.com",
-  projectId: "dashboard-35127",
-  storageBucket: "dashboard-35127.firebasestorage.app",
-  messagingSenderId: "961902627914",
-  appId: "1:961902627914:web:a7eb37fbe6907a6ed6aab3"
+  apiKey: "YOUR_API_KEY_HERE",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.firebasestorage.app",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef123456"
 };
 
 // Inizializza Firebase

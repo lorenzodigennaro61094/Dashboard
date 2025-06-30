@@ -1,8 +1,19 @@
 # 📁 Dashboard Documenti
 
-Una **dashboard moderna e intuitiva** per gestire e organizzare tutti i tuoi documenti, relazioni di lavoro e file personali.
+Una **dashboard moderna e intuitiva** per gestire e organizzare tutti i tuoi documenti, relazioni di lavoro e file personali con **sincronizzazione cloud Firebase**.
 
 ![Dashboard Preview](https://via.placeholder.com/800x400/667eea/ffffff?text=Dashboard+Documenti)
+
+## 🚨 **IMPORTANTE - SETUP RICHIESTO**
+
+**⚠️ Prima di utilizzare la dashboard, devi configurare Firebase:**
+
+1. **Leggi `FIREBASE_SETUP.md`** per istruzioni complete
+2. **Crea il tuo progetto Firebase gratuito**
+3. **Aggiorna `js/firebase-config.js`** con le tue credenziali
+4. **Le credenziali in questo repository sono placeholder** per sicurezza
+
+**🔒 I tuoi dati sono al sicuro**: Ogni utente ha il proprio progetto Firebase privato.
 
 ## ✨ Caratteristiche Principali
 
@@ -30,6 +41,13 @@ Una **dashboard moderna e intuitiva** per gestire e organizzare tutti i tuoi doc
 - **Mobile-First**: Perfettamente ottimizzata per tutti i dispositivi
 - **Interfaccia Moderna**: Design glassmorphic con animazioni fluide
 - **UX Intuitiva**: Esperienza utente studiata nei minimi dettagli
+
+### ☁️ **Sincronizzazione Cloud**
+- **Firebase Integration**: Sincronizzazione real-time multi-dispositivo
+- **Google Authentication**: Login sicuro con account Google
+- **Storage Illimitato**: 5GB gratuiti + possibilità di upgrade
+- **Backup Automatico**: I tuoi file sono sempre al sicuro
+- **Modalità Offline**: Funziona anche senza connessione
 
 ## 🚀 Come Iniziare
 
@@ -62,8 +80,9 @@ Dashboard/
 
 - **HTML5**: Struttura semantica moderna
 - **CSS3**: Design responsivo con Flexbox/Grid
-- **JavaScript ES6+**: Logica applicativa moderna
-- **localStorage**: Persistenza dati locale
+- **JavaScript ES6+**: Logica applicativa moderna con moduli
+- **Firebase v9+**: Backend cloud con Authentication, Firestore, Storage
+- **localStorage**: Persistenza dati locale per modalità offline
 - **Font Awesome**: Icone professionali
 - **Google Fonts**: Tipografia elegante (Inter)
 

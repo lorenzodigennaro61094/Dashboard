@@ -1,45 +1,52 @@
-# File temporanei del sistema operativo
+# File sensibili e credenziali
+firebase-config-private.js
+*.env
+.env.*
+
+# Dati utente locali
+localStorage-backup.json
+user-data/
+
+# File temporanei
+*.tmp
+*.temp
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
+
+# Log files
+*.log
+logs/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node modules (se usati)
+node_modules/
+package-lock.json
+
+# Build files
+dist/
+build/
+
+# Firebase specific
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# Backup files
+*.backup
+*.bak
 
 # File di backup dell'editor
 *~
-*.swp
-*.swo
 *#
 .#*
 
 # Cache del browser per test locali
 .cache/
-
-# File di log
-*.log
-logs/
-
-# Dipendenze (se in futuro si aggiungono)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# File di build (se in futuro si aggiungono processi di build)
-dist/
-build/
-
-# File di configurazione IDE
-.vscode/
-.idea/
-*.sublime-project
-*.sublime-workspace
-
-# File temporanei
-temp/
-tmp/
 
 # File di configurazione locale
 config.local.js
