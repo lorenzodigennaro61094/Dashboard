@@ -424,8 +424,8 @@ class DocumentDashboard {
             id: Date.now() + Math.random(), // ID temporaneo
             name: formData.get('fileName') || this.selectedFile.name,
             category: formData.get('fileCategory'),
-            description: formData.get('fileDescription'),
-            tags: formData.get('fileTags').split(',').map(tag => tag.trim()).filter(tag => tag),
+            description: formData.get('fileDescription') || '',
+            tags: (formData.get('fileTags') || '').split(',').map(tag => tag.trim()).filter(tag => tag),
             originalName: this.selectedFile.name,
             size: this.selectedFile.size,
             type: this.selectedFile.type,
